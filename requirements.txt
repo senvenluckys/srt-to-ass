@@ -1,4 +1,4 @@
 PyQt5==5.15.10
 pysubs2==1.6.1
 requests==2.31.0
-opencc-python-reimplemented==1.1.7
+opencc-python-reimplemented==0.1.7
