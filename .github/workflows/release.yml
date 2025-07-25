@@ -1,0 +1,96 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'  # 当推送v开头的标签时触发，如v1.0.0
+  workflow_dispatch:  # 允许手动触发
+    inputs:
+      version:
+        description: 'Release version (e.g., v1.0.0)'
+        required: true
+        default: 'v1.0.0'
+
+jobs:
+  build-and-release:
+    runs-on: windows-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pyinstaller
+        
+    - name: Build executable
+      run: |
+        pyinstaller --onefile --windowed --name "SrtToAssConverter" --hidden-import=opencc --hidden-import=pysubs2 --hidden-import=requests --collect-all=opencc toAss_standard_qt.py
+        
+    - name: Get version
+      id: get_version
+      run: |
+        if ("${{ github.event_name }}" -eq "workflow_dispatch") {
+          $version = "${{ github.event.inputs.version }}"
+        } else {
+          $version = "${{ github.ref_name }}"
+        }
+        echo "version=$version" >> $env:GITHUB_OUTPUT
+        echo "Version: $version"
+        
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ steps.get_version.outputs.version }}
+        release_name: SRT转ASS转换器 ${{ steps.get_version.outputs.version }}
+        body: |
+          ## 🎉 SRT转ASS字幕转换器 ${{ steps.get_version.outputs.version }}
+          
+          ### ✨ 主要功能
+          - 🔄 SRT字幕文件转换为ASS格式
+          - 🎨 自定义字幕样式和颜色
+          - 🌏 支持繁体中文转简体中文
+          - ⚙️ 多种字幕配置选项
+          - 📁 批量文件处理
+          
+          ### 📥 下载说明
+          - **Windows用户**: 下载 `SrtToAssConverter.exe`
+          - **单文件版本**: 无需安装，直接运行
+          - **包含所有依赖**: 无需额外安装Python或其他库
+          
+          ### 🚀 使用方法
+          1. 下载并运行 `SrtToAssConverter.exe`
+          2. 添加SRT字幕文件
+          3. 配置字幕样式（可选）
+          4. 点击"开始转换"
+          
+          ### 🔧 系统要求
+          - Windows 10/11 (64位)
+          - 无需安装Python环境
+          
+          ---
+          
+          **构建时间**: ${{ github.run_id }}
+          **构建环境**: Windows + Python 3.11
+        draft: false
+        prerelease: false
+        
+    - name: Upload Release Asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: dist/SrtToAssConverter.exe
+        asset_name: SrtToAssConverter.exe
+        asset_content_type: application/octet-stream
